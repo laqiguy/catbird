@@ -51,63 +51,68 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     let leafProvider = LeafProvider()
     try services.register(leafProvider)
     config.prefer(LeafRenderer.self, for: ViewRenderer.self)
+    
+    services.register(WriteModeCommand.self)
+    services.register(ReadModeCommand.self)
+    
+    var commandConfig = CommandConfig()
+    commandConfig.use(WriteModeCommand.self, as: "write")
+    commandConfig.use(ReadModeCommand.self, as: "read")
+    services.register(commandConfig)
 }
 
 struct ReadModeCommand: Command, ServiceType {
     static func makeService(for container: Container) throws -> ReadModeCommand {
-        return try ReadModeCommand(container: container)
+        return .init()
     }
     
     var arguments: [CommandArgument] { return [] }
     var options: [CommandOption] {
         return [
             .value(name: "host", short: "h", default: "127.0.0.1", help: ["- Set the hostname the server will run on."]),
-            .value(name: "port", short: "h", default: "8080", help: ["Set the port the server will run on."]),
-            .value(name: "mock_dir", short: "m", help: [" - Directory to write to"])
+            .value(name: "port", short: "p", default: "8080", help: ["Set the port the server will run on."]),
+            .value(name: "read_dir", short: "d", help: [" - Directory to write to"])
         ]
     }
     var help: [String] { return ["Start Catbird server in read mode"] }
     
-    private let server: Server
-    
-    public init(container: Container) throws {
-        self.server = try container.make()
-    }
-    
     func run(using context: CommandContext) throws -> Future<Void> {
+        
+        let host = try context.requireOption("host")
+        let port = try context.requireOption("port")
+        let mockDir = try context.requireOption("read_dir")
+        
+        context.console.print("\(host):\(port) from \(mockDir)")
+        
         return .done(on: context.container)
     }
 }
 
 struct WriteModeCommand: Command, ServiceType {
     static func makeService(for container: Container) throws -> WriteModeCommand {
-        return try WriteModeCommand(container: container)
+        return .init()
     }
     
     var arguments: [CommandArgument] { return [] }
     var options: [CommandOption] {
         return [
             .value(name: "host", short: "h", default: "127.0.0.1", help: ["- Set the hostname the server will run on."]),
-            .value(name: "port", short: "h", default: "8080", help: ["Set the port the server will run on."]),
-            .value(name: "remote_host", short: "h", default: "127.0.0.1:8080", help: [" - Host to write from"]),
-            .value(name: "mock_dir", short: "m", help: [" - Directory to write to"])
+            .value(name: "port", short: "p", default: "8080", help: ["Set the port the server will run on."]),
+            .value(name: "remote_host", short: "r", default: "127.0.0.1:8080", help: [" - Host to write from"]),
+            .value(name: "write_dir", short: "d", help: [" - Directory to write to"])
         ]
     }
     var help: [String] { return ["Start Catbird server in write mode"] }
-    
-    private let server: Server
-    
-    public init(container: Container) throws {
-        self.server = try container.make()
-    }
-    
+        
     func run(using context: CommandContext) throws -> Future<Void> {
     
         let host = try context.requireOption("host")
-        let dir = try context.requireOption("mock_dir")
-        let url = URL(string: host)
-        context.console.print(host)
-        
+        let port = try context.requireOption("port")
+        let mockDir = try context.requireOption("write_dir")
+        let remote = try context.requireOption("remote_host")
+
+        context.console.print("\(remote) through \(host):\(port) to \(mockDir)")
+
         return  .done(on: context.container)
     }
 }
